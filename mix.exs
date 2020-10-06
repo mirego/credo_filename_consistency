@@ -1,6 +1,7 @@
 defmodule CredoNaming.MixProject do
   use Mix.Project
 
+  @source_url "https://github.com/mirego/credo_naming"
   @version "1.0.0"
 
   def project do
@@ -9,9 +10,9 @@ defmodule CredoNaming.MixProject do
       app: :credo_naming,
       name: "CredoNaming",
       description: "A suite of checks to enforce naming best practices in an Elixir project.",
-      source_url: "https://github.com/mirego/credo_naming",
-      homepage_url: "https://github.com/mirego/credo_naming",
-      docs: [extras: ["README.md"], main: "readme", source_ref: "v#{@version}", source_url: "https://github.com/mirego/credo_naming"],
+      source_url: @source_url,
+      homepage_url: @source_url,
+      docs: docs(),
       package: package(),
       elixir: "~> 1.8",
       start_permanent: false,
@@ -37,8 +38,21 @@ defmodule CredoNaming.MixProject do
       maintainers: ["Rémi Prévost"],
       licenses: ["BSD-3"],
       links: %{
-        "GitHub" => "https://github.com/mirego/credo_naming"
+        "Changelog" => "#{@source_url}/blob/master/CHANGELOG.md",
+        "GitHub" => @source_url
       }
     }
+  end
+
+  defp docs do
+    [
+      main: "readme",
+      source_ref: "v#{@version}",
+      source_url: @source_url,
+      extras: [
+        "CHANGELOG.md",
+        "README.md"
+      ]
+    ]
   end
 end
