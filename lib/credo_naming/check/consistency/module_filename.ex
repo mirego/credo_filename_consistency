@@ -63,6 +63,7 @@ defmodule CredoNaming.Check.Consistency.ModuleFilename do
   @doc "Returns whether the filename matches the module defined in it."
   def valid_filename?(filename, module_name, params) do
     expected_filenames = valid_filenames(filename, module_name, params)
+
     {filename in expected_filenames, expected_filenames}
   end
 
@@ -125,54 +126,36 @@ defmodule CredoNaming.Check.Consistency.ModuleFilename do
     )
   end
 
-  # credo:disable-for-next-line Credo.Check.Refactor.ABCSize
-  defp valid_filenames(filename, module, params) when is_binary(module) do
-    root = root_path(filename)
-    extension = Path.extname(filename)
+  defp valid_filenames(filename, module_name, params) do
     acronyms = Params.get(params, :acronyms, __MODULE__)
+    extension = Path.extname(filename)
+    root_path = root_path(filename)
 
-    parts =
-      module
-      |> replace_acronyms(acronyms)
-      |> Macro.underscore()
-      |> Path.split()
+    module_part_list = module_name |> replace_acronyms(acronyms) |> String.split(".") |> Enum.map(&Macro.underscore/1)
 
-    filenames =
-      parts
-      |> Enum.with_index()
-      |> Enum.map(fn {_, index} ->
-        parts
-        |> Enum.split(index)
-        |> merge_filename_parts()
-        |> Enum.reject(&match?("", &1))
-        |> Path.join()
-        |> (&"#{root}/#{&1}#{extension}").()
-      end)
-      |> Enum.reverse()
+    # phoenix specific call that appends "controller" or "view" to the path
+    module_part_list = maybe_insert_web_resource(module_part_list, "controller")
+    module_part_list = maybe_insert_web_resource(module_part_list, "view")
 
-    [shortest_filename | _] = filenames
+    valid_module_path_name = Enum.join(module_part_list, "/")
 
-    # We want to support a `Foo` module in either `lib/foo.ex` or
-    # `lib/foo/foo.ex`. We also want to strip any `_test` directory suffix
-    # because we might define a `FooTest` module in `test/foo/foo_test.exs`.
-    duplicated_filename =
-      shortest_filename
-      |> String.replace(~r/\/([^.\/]+)(\..+)$/, "/\\1/\\1\\2")
-      |> String.replace(~r/_test\//, "/")
-
-    [duplicated_filename | filenames]
+    [Path.join([root_path, valid_module_path_name <> extension])]
   end
 
-  defp merge_filename_parts({[], file_parts}), do: merge_filename_parts({[""], file_parts})
+  defp maybe_insert_web_resource(module_part_list, resource_type) do
+    path = Enum.at(module_part_list, 0)
+    file_name = Enum.at(module_part_list, -1)
 
-  defp merge_filename_parts({directory_parts, []}),
-    do: merge_filename_parts({directory_parts, [""]})
-
-  defp merge_filename_parts({directory_parts, file_parts}) do
-    [
-      Path.join(directory_parts),
-      Enum.join(file_parts, ".")
-    ]
+    # we want to append the "resource_type" to the second path position
+    # if file ends with the resource type.
+    # So, in phoenix, will have: "/lib/app/controllers/my_controller" and the module as App.MyController.
+    # This module will put the pluralized "resource_type" at second position on the path
+    # generated from module's name
+    if String.ends_with?(path, "_web") and (String.ends_with?(file_name, "_#{resource_type}") or String.ends_with?(file_name, "_#{resource_type}_test")) do
+      List.insert_at(module_part_list, 1, resource_type <> "s")
+    else
+      module_part_list
+    end
   end
 
   defp replace_acronyms(module, acronyms) do
